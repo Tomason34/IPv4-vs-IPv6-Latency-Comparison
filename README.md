@@ -1,3 +1,18 @@
+Project Overview
+This project analyzes real-world IPv4 and IPv6 network performance using Windows 11 PowerShell.
+The objective was to:
+Compare DNS A vs AAAA resolution for a public service
+Measure ICMP latency using controlled ping samples
+Perform statistical analysis using PowerShell Test-Connection
+Compare routing paths using tracert (IPv4 vs IPv6)
+Document raw outputs and structured findings
+Interpret results through the lens of a Network Analyst / SOC practitioner
+This repository includes:
+raw/ — Raw command outputs and transcript
+analysis/ — Analyst summary of statistical measurements
+report/ — Markdown tables and clean interpretations
+README.md — Project overview and findings
+
 # IPv4 vs IPv6 Latency & Traceroute Comparison
 
 ## Objective
@@ -60,4 +75,5 @@ No intrusive scanning or exploitation was performed.
 | Minimum | 6 ms | 7 ms |
 | Maximum | 39 ms | 125 ms |
 | Average | 13.8 ms | 33.97 ms |
+
 
