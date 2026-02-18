@@ -1,0 +1,14 @@
+﻿IPv4 vs IPv6 Latency Project — Quick Summary (Cloudflare)
+Date: 2026-02-18 14:28:04
+
+Ping -4 (20 packets): min 7ms | max 73ms | avg 19ms | loss 0%
+Ping -6 (20 packets): min 9ms | max 37ms | avg 16ms | loss 0%
+
+Test-Connection (30 probes):
+IPv4 (104.16.133.229): min 6ms | max 39ms | avg 13.8ms
+IPv6 (2606:4700::6810:84e5): min 7ms | max 125ms | avg 33.97ms
+
+Notes:
+- Ping results show IPv6 slightly faster average in this run.
+- Test-Connection results show IPv6 higher variance/spikes (max 125ms), raising average.
+- Tracert had timeouts likely due to ICMP rate-limiting on intermediate routers.

@@ -1,0 +1,203 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260218134936
+Username: DESKTOP-45V4MCO\tmlyz
+RunAs User: DESKTOP-45V4MCO\tmlyz
+Configuration Name: 
+Machine: DESKTOP-45V4MCO (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\windows\System32\WindowsPowerShell\v1.0\powershell.exe
+Process ID: 26272
+PSVersion: 5.1.26100.7019
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.7019
+BuildVersion: 10.0.26100.7019
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is C:\Users\tmlyz\Desktop\IPv4-vs-IPv6-Latency-Project\raw\powershell_transcript.txt
+PS C:\Users\tmlyz> "$Proj created and transcript started."
+C:\Users\tmlyz\Desktop\IPv4-vs-IPv6-Latency-Project created and transcript started.
+PS C:\Users\tmlyz> $Target  = "cloudflare.com"
+PS C:\Users\tmlyz> $IPv4    = "104.16.133.229"
+PS C:\Users\tmlyz> $IPv6    = "2606:4700::6810:84e5"
+PS C:\Users\tmlyz> @"
+Target: $Target
+IPv4:   $IPv4
+IPv6:   $IPv6
+Collected: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+Machine:   $env:COMPUTERNAME
+User:      $env:USERNAME
+"@ | Set-Content -Encoding UTF8 "$Proj\raw\targets.txt"
+PS C:\Users\tmlyz> # DNS
+PS C:\Users\tmlyz> Resolve-DnsName $Target -Type A    | Out-File -Encoding UTF8 "$Proj\raw\dns_A_ipv4.txt"
+PS C:\Users\tmlyz> Resolve-DnsName $Target -Type AAAA | Out-File -Encoding UTF8 "$Proj\raw\dns_AAAA_ipv6.txt"
+PS C:\Users\tmlyz> # Ping (you already ran these, but we re-run once to store clean outputs)
+PS C:\Users\tmlyz> ping -4 $Target -n 20 | Out-File -Encoding UTF8 "$Proj\raw\ping_ipv4_20.txt"
+PS C:\Users\tmlyz> ping -6 $Target -n 20 | Out-File -Encoding UTF8 "$Proj\raw\ping_ipv6_20.txt"
+PS C:\Users\tmlyz> # Traceroute
+PS C:\Users\tmlyz> tracert -4 $Target | Out-File -Encoding UTF8 "$Proj\raw\tracert_ipv4.txt"
+PS C:\Users\tmlyz> tracert -6 $Target | Out-File -Encoding UTF8 "$Proj\raw\tracert_ipv6.txt"
+PS C:\Users\tmlyz> "Saved raw DNS, ping, and tracert outputs to $Proj\raw"
+Saved raw DNS, ping, and tracert outputs to C:\Users\tmlyz\Desktop\IPv4-vs-IPv6-Latency-Project\raw
+PS C:\Users\tmlyz> # === Step 3: Build metrics from raw ping outputs ===
+PS C:\Users\tmlyz> $Ping4Path = "$Proj\raw\ping_ipv4_20.txt"
+PS C:\Users\tmlyz> $Ping6Path = "$Proj\raw\ping_ipv6_20.txt"
+PS C:\Users\tmlyz> function Get-PingMetricsFromFile {
+    param(
+        [Parameter(Mandatory)] [string] $Path,
+        [Parameter(Mandatory)] [string] $IPVersion # "IPv4" or "IPv6"
+    )
+
+    $lines = Get-Content $Path -ErrorAction Stop
+
+    # Extract RTTs like "time=36ms" or "time<1ms" (rare)
+    $rtts = foreach ($l in $lines) {
+        if ($l -match "time[=<]\s*(\d+)\s*ms") { [int]$Matches[1] }
+    }
+
+    # Packet loss line: "Lost = 0 (0% loss)"
+    $lossPct = $null
+    foreach ($l in $lines) {
+        if ($l -match "Lost\s*=\s*\d+\s*\((\d+)%\s*loss\)") {
+            $lossPct = [int]$Matches[1]
+            break
+        }
+    }
+
+    # TTL extraction (IPv4 ping prints TTL=xx; IPv6 ping usually does NOT)
+    $ttls = foreach ($l in $lines) {
+        if ($l -match "TTL=(\d+)") { [int]$Matches[1] }
+    }
+
+    if (-not $rtts -or $rtts.Count -lt 2) {
+        return [pscustomobject]@{
+            IPVersion = $IPVersion
+            Samples   = ($rtts.Count)
+            MinMs     = $null
+            AvgMs     = $null
+            MaxMs     = $null
+            JitterMs  = $null
+            LossPct   = $lossPct
+            TTLs      = ($ttls -join ", ")
+            TTL_Min   = ($ttls | Measure-Object -Minimum).Minimum
+            TTL_Max   = ($ttls | Measure-Object -Maximum).Maximum
+        }
+    }
+
+    $m = $rtts | Measure-Object -Minimum -Maximum -Average
+    $avg = [double]$m.Average
+
+    # Jitter as standard deviation of RTTs
+    $variance = ($rtts | ForEach-Object { ([double]$_ - $avg) * ([double]$_ - $avg) } | Measure-Object -Sum).Sum / $rtts.Count
+    $stddev = [Math]::Sqrt($variance)
+
+    $ttlMin = ($ttls | Measure-Object -Minimum).Minimum
+    $ttlMax = ($ttls | Measure-Object -Maximum).Maximum
+
+    [pscustomobject]@{
+        IPVersion = $IPVersion
+        Samples   = $rtts.Count
+        MinMs     = [int]$m.Minimum
+        AvgMs     = [Math]::Round($avg, 2)
+        MaxMs     = [int]$m.Maximum
+        JitterMs  = [Math]::Round($stddev, 2)
+        LossPct   = $lossPct
+        TTLs      = ($(if ($ttls.Count -gt 0) { ($ttls | Select-Object -Unique | Sort-Object | ForEach-Object { $_ } ) -join ", " } else { "N/A (Windows ping -6 doesn't show TTL)" }))
+        TTL_Min   = $(if ($ttls.Count -gt 0) { $ttlMin } else { $null })
+        TTL_Max   = $(if ($ttls.Count -gt 0) { $ttlMax } else { $null })
+    }
+}
+PS C:\Users\tmlyz> $ipv4 = Get-PingMetricsFromFile -Path $Ping4Path -IPVersion "IPv4"
+PS C:\Users\tmlyz> $ipv6 = Get-PingMetricsFromFile -Path $Ping6Path -IPVersion "IPv6"
+PS C:\Users\tmlyz> # Decide winner by AvgMs (lower is better) if both exist
+PS C:\Users\tmlyz> $winner = "N/A"
+PS C:\Users\tmlyz> if ($ipv4.AvgMs -ne $null -and $ipv6.AvgMs -ne $null) {
+    if ($ipv4.AvgMs -lt $ipv6.AvgMs) { $winner = "IPv4 (lower average RTT)" }
+    elseif ($ipv6.AvgMs -lt $ipv4.AvgMs) { $winner = "IPv6 (lower average RTT)" }
+    else { $winner = "Tie (same average RTT)" }
+}
+PS C:\Users\tmlyz> $md = @()
+PS C:\Users\tmlyz> $md += "# IPv4 vs IPv6 Latency Comparison (Ping)"
+PS C:\Users\tmlyz> $md += ""
+PS C:\Users\tmlyz> $md += "**Target:** $((Get-Content "$Proj\raw\targets.txt" | Select-Object -First 1) -replace '^Target:\s*','')"
+PS C:\Users\tmlyz> $md += ""
+PS C:\Users\tmlyz> $md += "## Summary Table"
+PS C:\Users\tmlyz> $md += ""
+PS C:\Users\tmlyz> $md += "| Metric | IPv4 | IPv6 |"
+PS C:\Users\tmlyz> $md += "|---|---:|---:|"
+PS C:\Users\tmlyz> $md += "| Samples (replies) | $($ipv4.Samples) | $($ipv6.Samples) |"
+PS C:\Users\tmlyz> $md += "| Packet loss (%) | $($ipv4.LossPct) | $($ipv6.LossPct) |"
+PS C:\Users\tmlyz> $md += "| Min RTT (ms) | $($ipv4.MinMs) | $($ipv6.MinMs) |"
+PS C:\Users\tmlyz> $md += "| Avg RTT (ms) | $($ipv4.AvgMs) | $($ipv6.AvgMs) |"
+PS C:\Users\tmlyz> $md += "| Max RTT (ms) | $($ipv4.MaxMs) | $($ipv6.MaxMs) |"
+PS C:\Users\tmlyz> $md += "| Jitter (StdDev, ms) | $($ipv4.JitterMs) | $($ipv6.JitterMs) |"
+PS C:\Users\tmlyz> $md += "| TTL observed | $($ipv4.TTLs) | $($ipv6.TTLs) |"
+PS C:\Users\tmlyz> $md += ""
+PS C:\Users\tmlyz> $md += "**Quick call:** $winner"
+PS C:\Users\tmlyz> $md += ""
+PS C:\Users\tmlyz> $md += "## Notes"
+PS C:\Users\tmlyz> $md += "- *Jitter* here is calculated as the standard deviation of RTT samples (higher = less stable latency)."
+PS C:\Users\tmlyz> $md += "- IPv4 `ping` shows `TTL=` in replies; Windows `ping -6` typically does not display hop-limit/TTL, so TTL is recorded as N/A for IPv6."
+PS C:\Users\tmlyz> $md += ""
+PS C:\Users\tmlyz> $ReportPath = "$Proj\report\comparison_table.md"
+PS C:\Users\tmlyz> $md | Set-Content -Encoding UTF8 $ReportPath
+PS C:\Users\tmlyz> "Created: $ReportPath"
+Created: C:\Users\tmlyz\Desktop\IPv4-vs-IPv6-Latency-Project\report\comparison_table.md
+PS C:\Users\tmlyz> # === Step 4: Traceroute Analysis ===
+PS C:\Users\tmlyz> $Trace4Path = "$Proj\raw\tracert_ipv4.txt"
+PS C:\Users\tmlyz> $Trace6Path = "$Proj\raw\tracert_ipv6.txt"
+PS C:\Users\tmlyz> function Analyze-Tracert {
+    param(
+        [string]$Path,
+        [string]$IPVersion
+    )
+
+    $lines = Get-Content $Path
+
+    # Match hop lines (start with hop number)
+    $hopLines = $lines | Where-Object { $_ -match "^\s*\d+\s+" }
+
+    $totalHops = $hopLines.Count
+
+    # Count timeouts
+    $timeouts = ($hopLines | Where-Object { $_ -match "Request timed out" }).Count
+
+    # Last hop (destination)
+    $lastHop = $hopLines[-1]
+
+    [pscustomobject]@{
+        IPVersion = $IPVersion
+        TotalHops = $totalHops
+        Timeouts  = $timeouts
+        FinalHop  = $lastHop.Trim()
+    }
+}
+PS C:\Users\tmlyz> $ipv4Trace = Analyze-Tracert -Path $Trace4Path -IPVersion "IPv4"
+PS C:\Users\tmlyz> $ipv6Trace = Analyze-Tracert -Path $Trace6Path -IPVersion "IPv6"
+PS C:\Users\tmlyz> $md = @()
+PS C:\Users\tmlyz> $md += "# Traceroute Comparison (IPv4 vs IPv6)"
+PS C:\Users\tmlyz> $md += ""
+PS C:\Users\tmlyz> $md += "| Metric | IPv4 | IPv6 |"
+PS C:\Users\tmlyz> $md += "|---|---:|---:|"
+PS C:\Users\tmlyz> $md += "| Total Hops | $($ipv4Trace.TotalHops) | $($ipv6Trace.TotalHops) |"
+PS C:\Users\tmlyz> $md += "| Timeouts | $($ipv4Trace.Timeouts) | $($ipv6Trace.Timeouts) |"
+PS C:\Users\tmlyz> $md += "| Final Hop | $($ipv4Trace.FinalHop) | $($ipv6Trace.FinalHop) |"
+PS C:\Users\tmlyz> $md += ""
+PS C:\Users\tmlyz> $md += "## Analyst Interpretation"
+PS C:\Users\tmlyz> $md += ""
+PS C:\Users\tmlyz> $md += "- Equal hop counts suggest similar path length."
+PS C:\Users\tmlyz> $md += "- Timeouts mid-path are typically ICMP rate limiting, not packet loss."
+PS C:\Users\tmlyz> $md += "- Differences in intermediate routers indicate distinct BGP routing policies."
+PS C:\Users\tmlyz> $md += "- Even with equal hop count, latency may differ due to peering congestion."
+PS C:\Users\tmlyz> $md += ""
+PS C:\Users\tmlyz> $TraceReportPath = "$Proj\report\traceroute_analysis.md"
+PS C:\Users\tmlyz> $md | Set-Content -Encoding UTF8 $TraceReportPath
+PS C:\Users\tmlyz> "Created: $TraceReportPath"
+Created: C:\Users\tmlyz\Desktop\IPv4-vs-IPv6-Latency-Project\report\traceroute_analysis.md
+PS C:\Users\tmlyz> Stop-Transcript
+**********************
+Windows PowerShell transcript end
+End time: 20260218135942
+**********************

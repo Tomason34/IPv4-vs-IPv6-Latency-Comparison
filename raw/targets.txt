@@ -1,0 +1,6 @@
+﻿Target: cloudflare.com
+IPv4:   104.16.133.229
+IPv6:   2606:4700::6810:84e5
+Collected: 2026-02-18 13:50:33
+Machine:   DESKTOP-45V4MCO
+User:      tmlyz

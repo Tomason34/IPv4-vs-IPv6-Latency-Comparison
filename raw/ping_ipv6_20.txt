@@ -1,0 +1,27 @@
+﻿
+Pinging cloudflare.com [2606:4700::6810:84e5] with 32 bytes of data:
+Reply from 2606:4700::6810:84e5: time=7ms 
+Reply from 2606:4700::6810:84e5: time=12ms 
+Reply from 2606:4700::6810:84e5: time=7ms 
+Reply from 2606:4700::6810:84e5: time=7ms 
+Reply from 2606:4700::6810:84e5: time=14ms 
+Reply from 2606:4700::6810:84e5: time=14ms 
+Reply from 2606:4700::6810:84e5: time=59ms 
+Reply from 2606:4700::6810:84e5: time=220ms 
+Reply from 2606:4700::6810:84e5: time=108ms 
+Reply from 2606:4700::6810:84e5: time=52ms 
+Reply from 2606:4700::6810:84e5: time=25ms 
+Reply from 2606:4700::6810:84e5: time=247ms 
+Reply from 2606:4700::6810:84e5: time=21ms 
+Reply from 2606:4700::6810:84e5: time=68ms 
+Reply from 2606:4700::6810:84e5: time=48ms 
+Reply from 2606:4700::6810:84e5: time=38ms 
+Reply from 2606:4700::6810:84e5: time=15ms 
+Reply from 2606:4700::6810:84e5: time=13ms 
+Reply from 2606:4700::6810:84e5: time=16ms 
+Reply from 2606:4700::6810:84e5: time=15ms 
+
+Ping statistics for 2606:4700::6810:84e5:
+    Packets: Sent = 20, Received = 20, Lost = 0 (0% loss),
+Approximate round trip times in milli-seconds:
+    Minimum = 7ms, Maximum = 247ms, Average = 50ms

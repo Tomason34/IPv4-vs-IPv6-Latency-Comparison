@@ -1,0 +1,7 @@
+﻿
+Name                                           Type   TTL   Section    IPAddress                                
+----                                           ----   ---   -------    ---------                                
+cloudflare.com                                 AAAA   260   Answer     2606:4700::6810:84e5                     
+cloudflare.com                                 AAAA   260   Answer     2606:4700::6810:85e5                     
+
+

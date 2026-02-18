@@ -1,0 +1,13 @@
+﻿
+Tracing route to cloudflare.com [2606:4700::6810:84e5]
+over a maximum of 30 hops:
+
+  1    22 ms     7 ms    81 ms  G3100.myfiosgateway.com [2600:4040:9c68:a000::1] 
+  2   129 ms    14 ms     8 ms  2600:4040:9c60::1 
+  3     *      283 ms     *     2600:4000:1:132::434 
+  4     *       35 ms     9 ms  loopback1.NWRKNJMD-PPR01-CC.ALTER.NET [2600:802::1b] 
+  5     *        *        *     Request timed out.
+  6    15 ms     7 ms    10 ms  2400:cb00:11:3:: 
+  7    24 ms    12 ms     7 ms  2606:4700::6810:84e5 
+
+Trace complete.

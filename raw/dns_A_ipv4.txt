@@ -1,0 +1,7 @@
+﻿
+Name                                           Type   TTL   Section    IPAddress                                
+----                                           ----   ---   -------    ---------                                
+cloudflare.com                                 A      142   Answer     104.16.132.229                           
+cloudflare.com                                 A      142   Answer     104.16.133.229                           
+
+
